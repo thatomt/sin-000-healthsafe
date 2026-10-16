@@ -21,4 +21,15 @@ public final class WardCleaner {
         return s;
     }
 
+
+    static String titleCase(String s) {
+        StringBuilder out = new StringBuilder();
+        for (String word : s.toLowerCase().split(" ")) {
+            if (out.length() > 0) {
+                out.append(' ');
+            }
+            out.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return out.toString();
+    }
 }
