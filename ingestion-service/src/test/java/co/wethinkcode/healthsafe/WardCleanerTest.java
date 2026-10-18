@@ -47,4 +47,20 @@ class WardCleanerTest {
             assertEquals(1, notes.size(), "should explain why: " + bad);
         }
     }
+    @Test
+    void cleanRowFixesTheMessyW05Row() {
+        Ward ward = WardCleaner.cleanRow(new String[]{"w-05", "east wing ", "PAEDIATRICS", "five"});
+
+        assertEquals("W-05", ward.wardId());
+        assertEquals("East Wing", ward.wing());
+        assertEquals("Paediatrics", ward.department());
+        assertNull(ward.bedsAvailable());
+        assertEquals(1, ward.notes().size());
+    }
+
+    @Test
+    void cleanRowKeepsIcuUppercaseAndMapsPediatrics() {
+        assertEquals("ICU", WardCleaner.cleanRow(new String[]{"W-09", "North Wing", "ICU", "N/A"}).department());
+        assertEquals("Paediatrics", WardCleaner.cleanRow(new String[]{"W-11", "East Wing", "Pediatrics", "3"}).department());
+    }
 }
