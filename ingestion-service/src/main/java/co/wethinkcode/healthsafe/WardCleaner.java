@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.Map;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 
 public final class WardCleaner {
 
@@ -90,5 +92,44 @@ public final class WardCleaner {
             notes.add("bedsAvailable was non-numeric ('" + s + "'), flagged for follow-up");
             return null;
         }
+    }
+    /** Cleans every row. Duplicate ward ids are merged; unreadable rows are skipped, never fatal. */
+    static List<Ward> cleanAll(List<String[]> rows) {
+        Map<String, Ward> byId = new LinkedHashMap<>();
+        for (String[] row : rows) {
+            try {
+                Ward ward = cleanRow(row);
+                if (ward == null) {
+                    System.err.println("Skipping row without ward id: " + Arrays.toString(row));
+                    continue;
+                }
+                byId.merge(ward.wardId(), ward, WardCleaner::merge);
+            } catch (RuntimeException e) {
+                System.err.println("Skipping unreadable row " + Arrays.toString(row) + ": " + e.getMessage());
+            }
+        }
+        return new ArrayList<>(byId.values());
+    }
+
+    /** Duplicate rule: keep the first row's values, fill gaps from the later row, note conflicts. */
+    static Ward merge(Ward first, Ward later) {
+        List<String> notes = new ArrayList<>(first.notes());
+        notes.add("duplicate rows for " + first.wardId() + " merged: first row's values kept, gaps filled from later row");
+        notes.addAll(later.notes());
+        return new Ward(first.wardId(),
+                pick("wing", first.wing(), later.wing(), notes),
+                pick("department", first.department(), later.department(), notes),
+                pick("bedsAvailable", first.bedsAvailable(), later.bedsAvailable(), notes),
+                notes);
+    }
+
+    private static <T> T pick(String field, T first, T later, List<String> notes) {
+        if (first == null) {
+            return later;
+        }
+        if (later != null && !first.equals(later)) {
+            notes.add(field + " conflict: kept '" + first + "', ignored '" + later + "'");
+        }
+        return first;
     }
 }
