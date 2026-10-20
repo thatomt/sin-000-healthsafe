@@ -63,4 +63,40 @@ class WardCleanerTest {
         assertEquals("ICU", WardCleaner.cleanRow(new String[]{"W-09", "North Wing", "ICU", "N/A"}).department());
         assertEquals("Paediatrics", WardCleaner.cleanRow(new String[]{"W-11", "East Wing", "Pediatrics", "3"}).department());
     }
+    @Test
+    void cleanAllMergesDuplicateW05KeepingTheValidBedCount() {
+        List<String[]> rows = List.of(
+                new String[]{"W-05", "East Wing", "Paediatrics", "5"},
+                new String[]{"w-05", "east wing ", "PAEDIATRICS", "five"});
+
+        List<Ward> wards = WardCleaner.cleanAll(rows);
+
+        assertEquals(1, wards.size());
+        assertEquals(5, wards.get(0).bedsAvailable());
+        assertTrue(wards.get(0).notes().stream().anyMatch(n -> n.contains("duplicate")));
+    }
+
+    @Test
+    void cleanAllNotesConflictingValuesAndKeepsTheFirst() {
+        List<String[]> rows = List.of(
+                new String[]{"W-20", "East Wing", "Cardiology", "4"},
+                new String[]{"W-20", "East Wing", "Cardiology", "9"});
+
+        Ward ward = WardCleaner.cleanAll(rows).get(0);
+
+        assertEquals(4, ward.bedsAvailable());
+        assertTrue(ward.notes().stream().anyMatch(n -> n.contains("conflict")));
+    }
+
+    @Test
+    void cleanAllSkipsBrokenRowsWithoutCrashing() {
+        List<String[]> rows = List.of(
+                new String[]{},
+                new String[]{"W-01", "East Wing", "Cardiology", "3"});
+
+        List<Ward> wards = WardCleaner.cleanAll(rows);
+
+        assertEquals(1, wards.size());
+        assertEquals("W-01", wards.get(0).wardId());
+    }
 }
