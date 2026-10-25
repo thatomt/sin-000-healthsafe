@@ -14,6 +14,8 @@ public class WardServiceApp {
         String ingestionUrl = System.getenv().getOrDefault("INGESTION_URL", "http://localhost:7030");
         IngestionClient ingestion = new IngestionClient(ingestionUrl);
         EquipmentFailurePublisher failurePublisher = new EquipmentFailurePublisher();
+        StaffingBoard staffingBoard = new StaffingBoard();
+        new StaffingEventSubscriber(staffingBoard).start();
 
         Javalin app = Javalin.create().start(7031);
 
@@ -60,6 +62,16 @@ public class WardServiceApp {
             EquipmentFailureAlert alert = EquipmentFailureAlert.from(ward.get(), report);
             failurePublisher.publish(alert);
             ctx.status(202).json(Map.of("status", "queued", "alertId", alert.alertId()));
+        });
+
+        app.get("/wards/{id}/staffing", ctx -> {
+            String id = ctx.pathParam("id");
+            Optional<StaffingEvent> latest = staffingBoard.latest(id);
+            if (latest.isPresent()) {
+                ctx.json(latest.get());
+            } else {
+                ctx.status(404).json(Map.of("error", "no staffing update received yet for ward " + id.trim()));
+            }
         });
 
         app.exception(IOException.class, (e, ctx) ->
